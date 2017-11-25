@@ -1,6 +1,5 @@
 import random
 import math
-import operator
 from smartcab.environment import Agent, Environment
 from smartcab.planner import RoutePlanner
 from smartcab.simulator import Simulator
@@ -63,7 +62,7 @@ class LearningAgent(Agent):
         ## TO DO ##
         ###########
         
-        # NOTE : you are not allowed to engineer eatures outside of the inputs available.
+        # NOTE : you are not allowed to engineer features outside of the inputs available.
         # Because the aim of this project is to teach Reinforcement Learning, we have placed 
         # constraints in order for you to learn how to adjust epsilon and alpha, and thus learn about the balance between exploration and exploitation.
         # With the hand-engineered features, this learning process gets entirely negated.
@@ -74,22 +73,22 @@ class LearningAgent(Agent):
 
         return state
 
-
     def get_maxQ(self, state):
         """ The get_max_Q function is called when the agent is asked to find the
             maximum Q-value of all actions based on the 'state' the smartcab is in. """
 
-        ########### 
+        ###########
         ## TO DO ##
         ###########
-        # Calculate the maximum Q-value of all actions for a given state
-        for action_key in self.Q[state]:
-            if action_key == waypoint:
-                self.Q[state][action] = self.Q[state][action] + .25
+        # Calculate the maximum Q-value of all actions for a given state #only for one tiny
+        # piece, not s',a'
 
         #Pull the max q value
-        maxQ = self.Q[state][max(self.Q[state])]
-
+        state_key = str(state)
+        print state_key
+        maxQ = self.Q[state_key][max(self.Q[state_key])]
+        print "maxQ:"
+        print maxQ
         return maxQ 
 
 
@@ -102,10 +101,13 @@ class LearningAgent(Agent):
         # When learning, check if the 'state' is not in the Q-table (self.Q dictionary)
         # If it is not, create a new dictionary for that state
         #   Then, for each action available, set the initial Q-value to 0.0
-        if state not in self.Q:
-            self.Q[state] = None
+        # print state ex: ('left', {'light': 'red', 'oncoming': 'forward', 'right': 'right', 'left': None})
+        # print self.Q
+        state_key = str(state)
+        if state_key not in self.Q:
+            self.Q[state_key] = {}
             for action in self.valid_actions:
-                self.Q[state][action] = 0.0
+                self.Q[state_key][action] = 0.0
         return
 
 
@@ -117,25 +119,49 @@ class LearningAgent(Agent):
         self.state = state
         self.next_waypoint = self.planner.next_waypoint()
         valid_actions = [None, 'left', 'right', 'forward']
-
+        state_key = str(state)
         ########### 
         ## TO DO ##
         ###########
+        print state
+        # if state[1]['light'] == 'red':
+        #     self.action = None
+        #     print "red light. don't move"
         # When not learning, choose a random action
+        # else:
         random_action = random.choice(valid_actions)
         if self.learning == False:
-            action = random_action
+            print "Not learning: random action:"
+            print random_action
+            self.action = random_action
 
         # When learning, choose a random action with 'epsilon' probability
         if self.learning == True:
-            if self.epsilon > random.random():
+            # for action in self.Q[state]:
+            #     if action == self.next_waypoint:
+            #         self.Q[state][action] = self.Q[state][action] + .25
+            # print self.epsilon
+            explore_maybe = random.random()
+            print explore_maybe
+            if self.epsilon > explore_maybe:
+                print "explore yes!"
                 #random.random will be btwn 0 and 1
-                action = random_action
+                self.action = random_action
             # Otherwise, choose an action with the highest Q-value for the current state
         # Be sure that when choosing an action with highest Q-value that you randomly select between actions that "tie".
             else:
-                action = get_maxQ(self, state)
-        return action
+                print "exploit!"
+                print self.Q[state_key]
+                maxQ = self.get_maxQ(state)
+                for action, Q_value in self.Q[state_key].iteritems():
+                    if Q_value == maxQ:
+                        self.action = action
+                        print maxQ
+                        print action
+
+        return self.action
+
+    #https://stackoverflow.com/questions/8023306/get-key-by-value-in-dictionary
 
 
     def learn(self, state, action, reward):
@@ -148,9 +174,15 @@ class LearningAgent(Agent):
         ###########
         # When learning, implement the value iteration update rule
         #   Use only the learning rate 'alpha' (do not use the discount factor 'gamma')
+        state_key = str(state)
         if self.learning == True:
-            alpha = alpha + .5
-
+            print "reward:"
+            print reward
+            print state_key
+            print self.Q[state_key]
+            self.Q[state_key][action] = \
+                ((1 - self.alpha) * self.Q[state_key][action]) + (self.alpha * reward)
+            print self.Q[state_key]
         return
 
 
@@ -186,7 +218,7 @@ def run():
     #   learning   - set to True to force the driving agent to use Q-learning
     #    * epsilon - continuous value for the exploration factor, default is 1
     #    * alpha   - continuous value for the learning rate, default is 0.5
-    agent = env.create_agent(LearningAgent)
+    agent = env.create_agent(LearningAgent, epsilon=1, alpha=.5)
     
     ##############
     # Follow the driving agent
@@ -201,7 +233,7 @@ def run():
     #   display      - set to False to disable the GUI if PyGame is enabled
     #   log_metrics  - set to True to log trial and simulation results to /logs
     #   optimized    - set to True to change the default log file name
-    sim = Simulator(env, update_delay=.008, log_metrics=True)
+    sim = Simulator(env, update_delay=.0008, log_metrics=True)
     
     ##############
     # Run the simulator
