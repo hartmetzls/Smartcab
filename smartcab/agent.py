@@ -1,29 +1,28 @@
 import random
-import math
 from smartcab.environment import Agent, Environment
 from smartcab.planner import RoutePlanner
 from smartcab.simulator import Simulator
 
+
 class LearningAgent(Agent):
     """ An agent that learns to drive in the Smartcab world.
-        This is the object you will be modifying. """ 
+        This is the object you will be modifying. """
 
     def __init__(self, env, learning=True, epsilon=1.0, alpha=0.5):
-        super(LearningAgent, self).__init__(env)     # Set the agent in the evironment 
+        super(LearningAgent, self).__init__(env)  # Set the agent in the evironment
         self.planner = RoutePlanner(self.env, self)  # Create a route planner
         self.valid_actions = self.env.valid_actions  # The set of valid actions
 
         # Set parameters of the learning agent
-        self.learning = learning # Whether the agent is expected to learn
-        self.Q = dict()          # Create a Q-table which will be a dictionary of tuples
-        self.epsilon = epsilon   # Random exploration factor
-        self.alpha = alpha       # Learning factor
+        self.learning = learning  # Whether the agent is expected to learn
+        self.Q = dict()  # Create a Q-table which will be a dictionary of tuples
+        self.epsilon = epsilon  # Random exploration factor
+        self.alpha = alpha  # Learning factor
 
         ###########
         ## TO DO ##
         ###########
         # Set any additional class parameters as needed
-
 
     def reset(self, destination=None, testing=False):
         """ The reset function is called at the beginning of each trial.
@@ -32,8 +31,8 @@ class LearningAgent(Agent):
 
         # Select the destination as the new location to route to
         self.planner.route_to(destination)
-        
-        ########### 
+
+        ###########
         ## TO DO ##
         ###########
         # Update epsilon using a decay function of your choice
@@ -44,34 +43,41 @@ class LearningAgent(Agent):
             self.epsilon = 0
             self.alpha = 0
         else:
-            self.epsilon = self.epsilon - .05
+            self.epsilon = self.epsilon * .9925
+            self.alpha = self.epsilon / 2
 
         return None
 
     def build_state(self):
-        """ The build_state function is called when the agent requests data from the 
-            environment. The next waypoint, the intersection inputs, and the deadline 
+        """ The build_state function is called when the agent requests data from the
+            environment. The next waypoint, the intersection inputs, and the deadline
             are all features available to the agent. """
 
         # Collect data about the environment
-        waypoint = self.planner.next_waypoint() # The next waypoint 
-        inputs = self.env.sense(self)           # Visual input - intersection light and traffic
+        waypoint = self.planner.next_waypoint()  # The next waypoint
+        inputs = self.env.sense(self)  # Visual input - intersection light and traffic
         deadline = self.env.get_deadline(self)  # Remaining deadline
 
-        ########### 
+        ###########
         ## TO DO ##
         ###########
-        
+
         # NOTE : you are not allowed to engineer features outside of the inputs available.
-        # Because the aim of this project is to teach Reinforcement Learning, we have placed 
-        # constraints in order for you to learn how to adjust epsilon and alpha, and thus learn about the balance between exploration and exploitation.
+        # Because the aim of this project is to teach Reinforcement Learning, we have placed
+        # constraints in order for you to learn how to adjust epsilon and alpha, and thus learn
+        # about the balance between exploration and exploitation.
         # With the hand-engineered features, this learning process gets entirely negated.
-        
-        # Set 'state' as a tuple of relevant data for the agent        
-        state = (waypoint, inputs)
 
+        # Set 'state' as a tuple of relevant data for the agent
 
+        del inputs['right']
+        state = [waypoint]
+        for key_value in inputs.items():
+            state.append(key_value)
+        state = tuple(state)
         return state
+
+        # Resource: https://stackoverflow.com/questions/5844672/delete-an-item-from-a-dictionary
 
     def get_maxQ(self, state):
         """ The get_max_Q function is called when the agent is asked to find the
@@ -79,37 +85,38 @@ class LearningAgent(Agent):
 
         ###########
         ## TO DO ##
-        ###########
         # Calculate the maximum Q-value of all actions for a given state #only for one tiny
-        # piece, not s',a'
+        # piece, not s',a' # ie pull the max q value
 
-        #Pull the max q value
-        state_key = str(state)
-        print state_key
-        maxQ = self.Q[state_key][max(self.Q[state_key])]
-        print "maxQ:"
-        print maxQ
-        return maxQ 
+        # print self.Q[state] ex:
+        # {'forward': 0.0, 'right': 0.5928278392330717, None: 1.3845066039318412,
+        #  'left': -8.037509301217074}
 
+        maximum = max(self.Q[state], key=self.Q[state].get)
+        maxQ = self.Q[state][maximum]
+
+        return maxQ
+
+        # Resource: https://stackoverflow.com/questions/26871866/print-highest-value-in-dict-with-key
 
     def createQ(self, state):
         """ The createQ function is called when a state is generated by the agent. """
 
-        ########### 
+        ###########
         ## TO DO ##
         ###########
         # When learning, check if the 'state' is not in the Q-table (self.Q dictionary)
         # If it is not, create a new dictionary for that state
         #   Then, for each action available, set the initial Q-value to 0.0
-        # print state ex: ('left', {'light': 'red', 'oncoming': 'forward', 'right': 'right', 'left': None})
-        # print self.Q
-        state_key = str(state)
-        if state_key not in self.Q:
-            self.Q[state_key] = {}
-            for action in self.valid_actions:
-                self.Q[state_key][action] = 0.0
-        return
 
+        # print state ex: ('left', {'light': 'red', 'oncoming': 'forward', 'left': None})
+        if self.learning == True:
+            if state not in self.Q:
+                self.Q[state] = {}
+                for action in self.valid_actions:
+                    self.Q[state][action] = 0.0
+
+        return
 
     def choose_action(self, state):
         """ The choose_action function is called when the agent is asked to choose
@@ -119,89 +126,83 @@ class LearningAgent(Agent):
         self.state = state
         self.next_waypoint = self.planner.next_waypoint()
         valid_actions = [None, 'left', 'right', 'forward']
-        state_key = str(state)
-        ########### 
+
+        ###########
         ## TO DO ##
         ###########
-        print state
-        # if state[1]['light'] == 'red':
-        #     self.action = None
-        #     print "red light. don't move"
+
         # When not learning, choose a random action
-        # else:
+
         random_action = random.choice(valid_actions)
         if self.learning == False:
-            print "Not learning: random action:"
-            print random_action
+            # print "Not learning: random action:"
+            # print random_action
             self.action = random_action
 
         # When learning, choose a random action with 'epsilon' probability
-        if self.learning == True:
-            # for action in self.Q[state]:
-            #     if action == self.next_waypoint:
-            #         self.Q[state][action] = self.Q[state][action] + .25
-            # print self.epsilon
-            explore_maybe = random.random()
-            print explore_maybe
+        else:
+            explore_maybe = random.random() # random.random will be btwn 0 and 1
+            # print explore_maybe
+
             if self.epsilon > explore_maybe:
-                print "explore yes!"
-                #random.random will be btwn 0 and 1
+                # print "explore yes!"
                 self.action = random_action
-            # Otherwise, choose an action with the highest Q-value for the current state
-        # Be sure that when choosing an action with highest Q-value that you randomly select between actions that "tie".
+
+                # Otherwise, choose an action with the highest Q-value for the current state
+                # Be sure that when choosing an action with highest Q-value that you randomly
+                # select between actions that "tie".
+
             else:
-                print "exploit!"
-                print self.Q[state_key]
+                # print "exploit!"
+                # print self.Q[state]
                 maxQ = self.get_maxQ(state)
-                for action, Q_value in self.Q[state_key].iteritems():
+                maxQ_actions = []
+                for action, Q_value in self.Q[state].iteritems():
                     if Q_value == maxQ:
-                        self.action = action
-                        print maxQ
-                        print action
+                        maxQ_actions.append(action)
+                self.action = random.choice(maxQ_actions)
 
         return self.action
 
-    #https://stackoverflow.com/questions/8023306/get-key-by-value-in-dictionary
+    # Resource: https://stackoverflow.com/questions/8023306/get-key-by-value-in-dictionary
 
 
     def learn(self, state, action, reward):
         """ The learn function is called after the agent completes an action and
-            receives a reward. This function does not consider future rewards 
+            receives a reward. This function does not consider future rewards
             when conducting learning. """
 
-        ########### 
+        ###########
         ## TO DO ##
         ###########
         # When learning, implement the value iteration update rule
         #   Use only the learning rate 'alpha' (do not use the discount factor 'gamma')
-        state_key = str(state)
+
         if self.learning == True:
-            print "reward:"
-            print reward
-            print state_key
-            print self.Q[state_key]
-            self.Q[state_key][action] = \
-                ((1 - self.alpha) * self.Q[state_key][action]) + (self.alpha * reward)
-            print self.Q[state_key]
+            # print "reward:"
+            # print reward
+            # print self.Q[state]
+            self.Q[state][action] = \
+                ((1 - self.alpha) * self.Q[state][action]) + (self.alpha * reward)
+            # print self.Q[state]
         return
 
-
     def update(self):
-        """ The update function is called when a time step is completed in the 
+        """ The update function is called when a time step is completed in the
             environment for a given trial. This function will build the agent
             state, choose an action, receive a reward, and learn if enabled. """
 
-        state = self.build_state()          # Get current state
-        self.createQ(state)                 # Create 'state' in Q-table
+        state = self.build_state()  # Get current state
+        self.createQ(state)  # Create 'state' in Q-table
         action = self.choose_action(state)  # Choose an action
-        reward = self.env.act(self, action) # Receive a reward
-        self.learn(state, action, reward)   # Q-learn
+        reward = self.env.act(self, action)  # Receive a reward
+        self.learn(state, action, reward)  # Q-learn
 
         return
-        
+
 
 def run():
-    """ Driving function for running the simulation. 
+    """ Driving function for running the simulation.
         Press ESC to close the simulation, or [SPACE] to pause the simulation. """
 
     ##############
@@ -211,15 +212,15 @@ def run():
     #   num_dummies - discrete number of dummy agents in the environment, default is 100
     #   grid_size   - discrete number of intersections (columns, rows), default is (8, 6)
     env = Environment()
-    
+
     ##############
     # Create the driving agent
     # Flags:
     #   learning   - set to True to force the driving agent to use Q-learning
     #    * epsilon - continuous value for the exploration factor, default is 1
     #    * alpha   - continuous value for the learning rate, default is 0.5
-    agent = env.create_agent(LearningAgent, epsilon=1, alpha=.5)
-    
+    agent = env.create_agent(LearningAgent, epsilon=1, alpha=.5, learning=True)
+
     ##############
     # Follow the driving agent
     # Flags:
@@ -233,12 +234,12 @@ def run():
     #   display      - set to False to disable the GUI if PyGame is enabled
     #   log_metrics  - set to True to log trial and simulation results to /logs
     #   optimized    - set to True to change the default log file name
-    sim = Simulator(env, update_delay=.0008, log_metrics=True)
-    
+    sim = Simulator(env, update_delay=.00000001, log_metrics=True, display=False, optimized=True)
+
     ##############
     # Run the simulator
     # Flags:
-    #   tolerance  - epsilon tolerance before beginning testing, default is 0.05 
+    #   tolerance  - epsilon tolerance before beginning testing, default is 0.05
     #   n_test     - discrete number of testing trials to perform, default is 0
     sim.run(n_test=10)
 
